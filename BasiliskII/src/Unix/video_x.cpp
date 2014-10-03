@@ -400,7 +400,9 @@ static void add_window_modes(video_depth depth)
 	add_mode(1024, 768, 0x83, TrivialBytesPerRow(1024, depth), depth);
 	add_mode(1152, 870, 0x84, TrivialBytesPerRow(1152, depth), depth);
 	add_mode(1280, 1024, 0x85, TrivialBytesPerRow(1280, depth), depth);
+	add_mode(1366, 768, 0x88, TrivialBytesPerRow(1366, depth), depth);
 	add_mode(1600, 1200, 0x86, TrivialBytesPerRow(1600, depth), depth);
+	add_mode(2560, 1600, 0x87, TrivialBytesPerRow(2560, depth), depth);
 }
 
 // Set Mac frame layout and base address (uses the_buffer/MacFrameBaseMac)
@@ -825,7 +827,7 @@ driver_window::driver_window(X11_monitor_desc &m)
 	set_window_delete_protocol(w);
 
 	// Make window unresizable
-	{
+	if(0) {
 		XSizeHints *hints = XAllocSizeHints();
 		if (hints) {
 			hints->min_width = width;
@@ -843,6 +845,27 @@ driver_window::driver_window(X11_monitor_desc &m)
 	XMapWindow(x_display, w);
 	wait_mapped(w);
 	D(bug(" window mapped\n"));
+
+	{
+		XEvent xev;
+		Atom wm_state = XInternAtom(x_display, "_NET_WM_STATE", False);
+		Atom fullscreen = XInternAtom(x_display, "_NET_WM_STATE_FULLSCREEN", False);
+
+		memset(&xev, 0, sizeof(xev));
+		xev.type = ClientMessage;
+		xev.xclient.window = w;
+		xev.xclient.message_type = wm_state;
+		xev.xclient.format = 32;
+		xev.xclient.data.l[0] = 1;
+		xev.xclient.data.l[1] = fullscreen;
+		xev.xclient.data.l[2] = 0;
+		XSendEvent (x_display, DefaultRootWindow(x_display), False,
+						SubstructureRedirectMask | SubstructureNotifyMask, &xev);
+
+		XFlush(x_display);
+
+		
+	}
 
 	// 1-bit mode is big-endian; if the X server is little-endian, we can't
 	// use SHM because that doesn't allow changing the image byte order
@@ -2116,6 +2139,8 @@ static int kc_decode(KeySym ks, bool key_down)
 		case XK_Alt_R: return 0x37;
 		case XK_Meta_L: return 0x3a;
 		case XK_Meta_R: return 0x3a;
+		case XK_Super_L: return 0x3a;
+		case XK_Super_R: return 0x3a;
 		case XK_Menu: return 0x32;
 		case XK_Caps_Lock: return 0x39;
 		case XK_Num_Lock: return 0x47;

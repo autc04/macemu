@@ -518,7 +518,7 @@ static bool open_window(int width, int height)
 
 	// Make window unresizable
 	XSizeHints *hints;
-	if ((hints = XAllocSizeHints()) != NULL) {
+	if (false && (hints = XAllocSizeHints()) != NULL) {
 		hints->min_width = width;
 		hints->max_width = width;
 		hints->min_height = height;
@@ -531,6 +531,26 @@ static bool open_window(int width, int height)
 	// Show window
 	XMapWindow(x_display, the_win);
 	wait_mapped(the_win);
+
+    {
+        XEvent xev;
+        Atom wm_state = XInternAtom(x_display, "_NET_WM_STATE", False);
+        Atom fullscreen = XInternAtom(x_display, "_NET_WM_STATE_FULLSCREEN", False);
+
+        memset(&xev, 0, sizeof(xev));
+        xev.type = ClientMessage;
+        xev.xclient.window = the_win;
+        xev.xclient.message_type = wm_state;
+        xev.xclient.format = 32;
+        xev.xclient.data.l[0] = 1;
+        xev.xclient.data.l[1] = fullscreen;
+        xev.xclient.data.l[2] = 0;
+        XSendEvent (x_display, DefaultRootWindow(x_display), False,
+                                        SubstructureRedirectMask | SubstructureNotifyMask, &xev);
+
+        XFlush(x_display);            
+    }
+
 
 	// 1-bit mode is big-endian; if the X server is little-endian, we can't
 	// use SHM because that doesn't allow changing the image byte order
@@ -1611,11 +1631,24 @@ bool VideoInit(void)
 		p->viAppleID = apple_id;
 		p++;
 	}
+
+	for (unsigned int d = APPLE_1_BIT; d <= APPLE_32_BIT; d++)
+	{
+		if (find_visual_for_depth(d))
+		//	add_window_modes(p, window_modes, d);
+		{
+			add_custom_mode(p,DIS_WINDOW,1600,1200,d, APPLE_1600x1200);
+			add_custom_mode(p,DIS_WINDOW,1366,768,d, APPLE_1366x768);
+			add_custom_mode(p,DIS_WINDOW,2560,1600,d, APPLE_2560x1600);
+		}
+	}
+	
 	p->viType = DIS_INVALID;	// End marker
 	p->viRowBytes = 0;
 	p->viXsize = p->viYsize = 0;
 	p->viAppleMode = 0;
 	p->viAppleID = 0;
+
 
 	// Find default mode (window 640x480)
 	cur_mode = -1;
@@ -1919,6 +1952,9 @@ static int kc_decode(KeySym ks)
 		case XK_Alt_R: return 0x37;
 		case XK_Meta_L: return 0x3a;
 		case XK_Meta_R: return 0x3a;
+		case XK_Super_L: return 0x3a;
+		case XK_Super_R: return 0x3a;
+
 		case XK_Menu: return 0x32;
 		case XK_Caps_Lock: return 0x39;
 		case XK_Num_Lock: return 0x47;
